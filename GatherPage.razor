@@ -1,0 +1,86 @@
+﻿@using CasCap.Models
+@using System.Collections.Concurrent
+@using System.Text.Json
+@using System.Threading.Tasks.Dataflow
+@using Microsoft.AspNetCore.Components.WebView.WindowsForms;
+@using Microsoft.Extensions.DependencyInjection;
+
+@inject CasCap.Services.GooglePhotosService gp
+
+<h1>수집 페이지</h1>
+
+<table>
+    <thead style="position: sticky; top: 0; background-color: silver">
+        <tr>
+            <th>@(miSelect.IsEmpty ? "선택" : miSelect.Count + "개 선택됨")</th>
+            <th>Preview<input type="range" @bind=size /></th>
+            <th>Description</th>
+            <th>갱신</th>
+        </tr>
+    </thead>
+    <tbody>
+        <Virtualize Context=mi Items=miDic.Values SpacerElement=tr ItemSize=(size+margin)>
+            @{
+                var ck = miSelect.ContainsKey(mi.id);
+            }
+            <tr @key=mi.id style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "" )'>
+                <td @onclick='()=>_ = ck ? (object)miSelect.TryRemove(mi.id, out _) : miSelect[mi.id] = mi'>@mi.filename</td>
+                <td><a href="@mi.baseUrl"><img src='@(mi.baseUrl+$"=c-s{size}")'></a><a href="@mi.productUrl">productUrl</a></td>
+                <td>@mi.description</td>
+                <td><button @onclick='async ()=>miDic[mi.id] = await gp.GetMediaItemByIdAsync(mi.id) ?? throw new("No Data")'>갱신</button></td>
+            </tr>
+        </Virtualize>
+    </tbody>
+</table>
+
+<div style="position: sticky; bottom: 0; background-color: silver; overflow:hidden">
+    @if (update_request is null)
+    {
+        <p>캐시데이터 로드중 입니다..</p>
+    }
+    else
+    {
+        <input @bind=update_count type=range min=1 max=1000 />
+        <button @onclick='()=>Task.WhenAll(new object[update_count].Select(update_request.SendAsync))'>@update_count 개 업데이트</button>
+        <button @onclick='()=>update_request.TryReceiveAll(out _)'>업데이트중지</button>
+        <button @onclick='()=>File.WriteAllLinesAsync(cache, miDic.Values.Select(mi => JsonSerializer.Serialize(mi)))'>캐시저장</button>
+    }
+    <p>@(new { login, cache_count = miDic.Count, updated_count, updated_all })</p>
+</div>
+@code {
+    const string cache = "./cache.mi";
+    ConcurrentDictionary<string, MediaItem> miDic = new(), miSelect = new();
+
+    uint size = 32;
+    const int margin = 10;
+
+    bool? login;
+    BufferBlock<object?>? update_request;
+    uint update_count = 10;
+    uint updated_count = 0;
+    bool updated_all = false;
+    protected override async void OnInitialized()
+    {
+        await File.AppendAllLinesAsync(cache, []);
+        await foreach (var line in File.ReadLinesAsync(cache))
+            if (JsonSerializer.Deserialize<MediaItem>(line) is { } mi)
+            {
+                miDic[mi.id] = mi;
+                StateHasChanged();
+            }
+
+        login = await gp.LoginAsync();
+        update_request = new();
+        StateHasChanged();
+
+        _ = await update_request.ReceiveAsync();
+        await foreach (var mi in gp.GetMediaItemsAsync())
+        {
+            miDic[mi.id] = mi;
+            updated_count++;
+            StateHasChanged();
+            _ = await update_request.ReceiveAsync();
+        }
+        updated_all = true;
+    }
+}
