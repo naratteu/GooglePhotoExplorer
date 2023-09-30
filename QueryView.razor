@@ -1,0 +1,34 @@
+﻿@using CasCap.Models
+<table>
+    <thead style="position: sticky; top: 0; background-color: silver">
+        <tr>
+            <th>@(miSelect switch { { Count: 0 } => "선택", { Count: var c } => $"{miSelect.Count}/{miList.Count}개 선택됨" })</th>
+            <th>Preview<input type="range" @bind=size /></th>
+            <th>Description</th>
+            <th>갱신</th>
+        </tr>
+    </thead>
+    <tbody>
+        <Virtualize Context=id Items=miList SpacerElement=tr ItemSize=(size+margin)>
+            @{
+                var ck = miSelect.Contains(id);
+                var mi = parent[id];
+            }
+            <tr @key=id style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "")'>
+                <td @onclick='()=>_ = ck ? miSelect.Remove(id) : miSelect.Add(id)'>@mi.filename</td>
+                <td><a href="@mi.baseUrl"><img src='@(mi.baseUrl+$"=c-s{size}")'></a><a href="@mi.productUrl">productUrl</a></td>
+                <td>@mi.description</td>
+                <td><button @onclick='()=>parent.Refresh(id)'>갱신</button></td>
+            </tr>
+        </Virtualize>
+    </tbody>
+</table>
+@code
+{
+    [Parameter] public required GatherPage parent { get; init; }
+    [Parameter] public required ICollection<string> miList { get; init; }
+    HashSet<string> miSelect = new();
+
+    uint size = 32;
+    const int margin = 10;
+}
