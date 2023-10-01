@@ -10,9 +10,9 @@
             {
                 <th @onclick='()=>miSelect.RemoveWhere(_ => true)'>@miSelect.Count/@miList.Count 개 선택됨</th>
             }
-            <th>Preview<br><input type="range" @bind=size /></th>
+            <th><details><summary>Img</summary><dialog open><label><input type="range" @bind=size />@(size)px</label></dialog></details></th>
             <th>Description<button @onclick='()=>AppendDecs(miSelect)'>+</button></th>
-            <th><!--갱신--></th>
+            <th><button title="Refresh" @onclick='StateHasChanged'>↻</button></th>
         </tr>
     </thead>
     <tbody>
@@ -25,7 +25,7 @@
                 <td @onclick='()=>_ = ck ? miSelect.Remove(id) : miSelect.Add(id)'>@mi.filename</td>
                 <td><a href="@mi.baseUrl"><img src='@(mi.baseUrl+$"=c-s{size}")'></a><a href="@mi.productUrl">↪</a></td>
                 <td>@mi.description</td>
-                <td><button @onclick='()=>parent.Refresh(id)'>↻</button></td>
+                <td><button title="Reload" @onclick='()=>parent.Reload(id)'>🗘</button></td>
             </tr>
         </Virtualize>
     </tbody>
@@ -47,7 +47,7 @@
 
         await Macro.Inst.AppendDecs(text, [.. ids.Select(id => parent[id])], async mi =>
         {
-            await parent.Refresh(mi.id);
+            await parent.Reload(mi.id);
             StateHasChanged();
         });
     }

@@ -77,7 +77,7 @@
         updated_all = true;
     }
 
-    public async Task Refresh(string id) => cache_add = miDic[id] = await gp.GetMediaItemByIdAsync(id) ?? throw new("No Data");
+    public async Task Reload(string id) => cache_add = miDic[id] = await gp.GetMediaItemByIdAsync(id) ?? throw new("No Data");
 
     (string name, IEnumerable<MediaItem> list)[] Group = [];
     IEnumerable<(string name, IEnumerable<MediaItem> list)> Groupping()
