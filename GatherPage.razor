@@ -5,12 +5,8 @@
 @using System.Threading.Tasks.Dataflow
 @using Microsoft.AspNetCore.Components.WebView.WindowsForms;
 @using Microsoft.Extensions.DependencyInjection;
-@using Microsoft.JSInterop
-@using OpenQA.Selenium
-@using OpenQA.Selenium.Edge
 
 @inject CasCap.Services.GooglePhotosService gp
-@inject IJSRuntime js
 
 <h1>수집 페이지</h1>
 
@@ -28,16 +24,15 @@
         <button @onclick='()=>update_request.TryReceiveAll(out _)'>업데이트중지</button>
         <button @onclick='()=>File.WriteAllLinesAsync(cache, miDic.Values.Select(mi => JsonSerializer.Serialize(mi)))'>캐시정리</button>
         <br>
-        <button @onclick='async ()=>await AppendDecs(await js.InvokeAsync<string>("prompt", ["추가할 내용을 입력하세요", "#"]), [..miDic.Values])'>@(miSelect.Count)개 아이템에 설명 추가</button>
         <button @onclick='() => Group = Groupping().ToArray()'>분류하기</button>
         foreach (var (n, g) in Group)
         {
             <button @onclick=open>@n</button>
-            void open() => new BlazorForm<Rf>
+            void open() => new Rf.Form
             {
                 Text = n,
                 Size = new(800, 600),
-                [c => c.rf] = rf =@<QueryView parent=this miList='[..g.Select(mi => mi.id)]' />,
+                rf = @<QueryView parent=this miList='[..g.Select(mi => mi.id)]' />,
             }.Show();
         }
     }
@@ -45,12 +40,10 @@
     <span>@(new { login, cache_count = miDic.Count, updated_count, updated_all })</span>
 </div>
 @code {
-    static RenderFragment rf { set { } }
-
     const string cache = "./cache.mi";
     MediaItem cache_add { set => File.AppendAllLines(cache, [JsonSerializer.Serialize(value)]); }
 
-    ConcurrentDictionary<string, MediaItem> miDic = new(), miSelect = new();
+    ConcurrentDictionary<string, MediaItem> miDic = new();
     public MediaItem this[string id] => miDic[id];
 
     bool? login;
@@ -68,11 +61,12 @@
                 StateHasChanged();
             }
 
-        login = await gp.LoginAsync();
         update_request = new();
         StateHasChanged();
 
         _ = await update_request.ReceiveAsync();
+        login = await gp.LoginAsync();
+        StateHasChanged();
         await foreach (var mi in gp.GetMediaItemsAsync())
         {
             cache_add = miDic[mi.id] = mi;
@@ -84,37 +78,6 @@
     }
 
     public async Task Refresh(string id) => cache_add = miDic[id] = await gp.GetMediaItemByIdAsync(id) ?? throw new("No Data");
-
-    async Task AppendDecs(string? text, MediaItem[] items)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return;
-
-        using var cd = new EdgeDriver(@"Q:\OneDrive\SWHOME", options: new() { DebuggerAddress = "localhost:9223" });
-        try
-        {
-            cd.SwitchTo().NewWindow(WindowType.Tab);
-
-            foreach (var mi in items)
-            {
-                await Task.Delay(3000);
-                cd.Url = mi.productUrl;
-                await Task.Delay(3000);
-            re: try
-                { cd.FindElement(By.CssSelector("textarea[aria-label='설명']")).SendKeys(text + Keys.Escape); }
-                catch
-                { cd.FindElement(By.CssSelector("button[aria-label='정보 열기']")).Click(); goto re; }
-                finally
-                { await Task.Delay(3000); }
-                await Refresh(mi.id);
-                StateHasChanged();
-            }
-        }
-        finally
-        {
-            cd.Quit();
-        }
-    }
 
     (string name, IEnumerable<MediaItem> list)[] Group = [];
     IEnumerable<(string name, IEnumerable<MediaItem> list)> Groupping()

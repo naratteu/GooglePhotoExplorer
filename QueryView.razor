@@ -2,10 +2,17 @@
 <table>
     <thead style="position: sticky; top: 0; background-color: silver">
         <tr>
-            <th>@(miSelect switch { { Count: 0 } => "선택", { Count: var c } => $"{miSelect.Count}/{miList.Count}개 선택됨" })</th>
-            <th>Preview<input type="range" @bind=size /></th>
-            <th>Description</th>
-            <th>갱신</th>
+            @if (miSelect.Count is 0)
+            {
+                <th @onclick='()=>miSelect.UnionWith(miList)'>선택</th>
+            }
+            else
+            {
+                <th @onclick='()=>miSelect.RemoveWhere(_ => true)'>@miSelect.Count/@miList.Count 개 선택됨</th>
+            }
+            <th>Preview<br><input type="range" @bind=size /></th>
+            <th>Description<button @onclick='()=>AppendDecs(miSelect)'>+</button></th>
+            <th><!--갱신--></th>
         </tr>
     </thead>
     <tbody>
@@ -16,9 +23,9 @@
             }
             <tr @key=id style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "")'>
                 <td @onclick='()=>_ = ck ? miSelect.Remove(id) : miSelect.Add(id)'>@mi.filename</td>
-                <td><a href="@mi.baseUrl"><img src='@(mi.baseUrl+$"=c-s{size}")'></a><a href="@mi.productUrl">productUrl</a></td>
+                <td><a href="@mi.baseUrl"><img src='@(mi.baseUrl+$"=c-s{size}")'></a><a href="@mi.productUrl">↪</a></td>
                 <td>@mi.description</td>
-                <td><button @onclick='()=>parent.Refresh(id)'>갱신</button></td>
+                <td><button @onclick='()=>parent.Refresh(id)'>↻</button></td>
             </tr>
         </Virtualize>
     </tbody>
@@ -31,4 +38,17 @@
 
     uint size = 32;
     const int margin = 10;
+
+    async Task AppendDecs(IEnumerable<string> ids)
+    {
+        var text = await js.InvokeAsync<string>("prompt", [$"선택한 {ids.Count()}개 사진에 추가할 내용을 입력하세요", "#"]);
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        await Macro.Inst.AppendDecs(text, [.. ids.Select(id => parent[id])], async mi =>
+        {
+            await parent.Refresh(mi.id);
+            StateHasChanged();
+        });
+    }
 }

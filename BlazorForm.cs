@@ -11,7 +11,7 @@ file static class Util
     public static T As<T>(this T t, Action<T> a) { a(t); return t; }
 }
 
-class BlazorForm<T> : BlazorForm where T : ComponentBase
+public class BlazorForm<T> : BlazorForm where T : ComponentBase
 {
     public BlazorForm() : base(typeof(T)) { }
     public object? this[Expression<Func<T, object>> selectMember]
@@ -24,7 +24,7 @@ class BlazorForm<T> : BlazorForm where T : ComponentBase
         }] = value;
     }
 }
-class BlazorForm : Form
+public class BlazorForm : Form
 {
     public BlazorForm(Type t) => Controls.Add(new BlazorWebView
     {

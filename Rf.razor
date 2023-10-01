@@ -1,4 +1,5 @@
 ﻿@code {
     [Parameter] public required RenderFragment rf { get; init; }
+    public class Form : BlazorForm<Rf> { public required RenderFragment rf { init => this[c => c.rf] = value; } }
 }
 @rf
