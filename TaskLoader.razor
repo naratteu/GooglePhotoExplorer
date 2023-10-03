@@ -1,0 +1,20 @@
+﻿@implements IDisposable
+@typeparam T
+@Rf
+@code {
+    CancellationTokenSource cts = new();
+    [Parameter] public required Task<T> Task { get; init; }
+    [Parameter] public RenderFragment? Wait { get; init; }
+    [Parameter] public RenderFragment<T>? Ok { get; init; }
+    [Parameter] public RenderFragment<Exception>? Err { get; init; }
+    RenderFragment? Rf;
+    protected override async Task OnParametersSetAsync()
+    {
+        Rf = Wait; try { Rf = Ok?.Invoke(await Task.WaitAsync(cts.Token)); } catch (Exception ex) { Rf = Err?.Invoke(ex); }
+    }
+    void IDisposable.Dispose()
+    {
+        cts.Cancel();
+        cts.Dispose();
+    }
+}

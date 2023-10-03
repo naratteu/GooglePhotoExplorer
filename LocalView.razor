@@ -15,12 +15,6 @@
         if (file.ShowDialog() is DialogResult.OK)
             await js.InvokeVoidAsync("localStorage.setItem", nameof(path), path = file.SelectedPath);
     }
-    readonly ActionBlock<Task> ab;
-    public LocalView() => ab = new(async t =>
-    {
-        if ((t.IsCompleted, ab?.InputCount) is not (true, not 0))
-            try { await t; } catch { } finally { await InvokeAsync(StateHasChanged); }
-    });
     protected override async Task OnInitializedAsync()
     {
         path = await js.InvokeAsync<string>("localStorage.getItem", nameof(path));
@@ -48,7 +42,13 @@
             }
             <tr @key=file style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "")'>
                 <td @onclick='()=>_ = ck ? miSelect.Remove(file) : miSelect.Add(file)'>@file.Name</td>
-                <td><img style="height:@(size)px" src='@Load(cache.Get(file, ref refDic.GetOrAdd(file.FullName, _ => new()).Ref))'></td>
+                <td>
+                    <TaskLoader Task="cache.Get(file, ref refDic.GetOrAdd(file.FullName, _ => new()).Ref)">
+                        <Wait><img style="height:@(size)px" src='./Loading.png' /></Wait>
+                        <Ok><img style="height:@(size)px" src='@(context.ImageHash.preview)' /></Ok>
+                        <Err><img style="height:@(size)px" src='./Forbidden.png' /></Err>
+                    </TaskLoader>
+                </td>
             </tr>
         </Virtualize>
     </tbody>
@@ -62,20 +62,4 @@
 
     uint size = 32;
     const int margin = 10;
-
-    string Load<T>(Task<T> t) where T : Cache.ICachePhoto
-    {
-        if (t.IsCompleted)
-        {
-            try
-            { return t.Result.ImageHash.preview; }
-            catch
-            { return "./Forbidden.png"; }
-        }
-        else
-        {
-            _ = ab.Post(t);
-            return "./Loading.png";
-        }
-    }
 }
