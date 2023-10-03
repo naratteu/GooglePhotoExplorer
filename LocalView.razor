@@ -32,21 +32,22 @@
                 <th @onclick='()=>miSelect.RemoveWhere(_ => true)'>@miSelect.Count/@files.Length 개 선택됨</th>
             }
             <th><details><summary>Img</summary><dialog open><label><input type="range" @bind=size />@(size)px</label></dialog></details></th>
-            <th><button title="Refresh" @onclick='StateHasChanged'>↻</button></th>
+            <th><button title="Refresh" @onclick='() => { cache.ClearFault(); StateHasChanged(); }'>↻</button></th>
         </tr>
     </thead>
     <tbody>
         <Virtualize Context=file Items=files SpacerElement=tr ItemSize=(size+margin)>
             @{
                 var ck = miSelect.Contains(file);
+                var style = $"height:{size}px";
             }
             <tr @key=file style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "")'>
                 <td @onclick='()=>_ = ck ? miSelect.Remove(file) : miSelect.Add(file)'>@file.Name</td>
                 <td>
                     <TaskLoader Task="cache.Get(file, ref refDic.GetOrAdd(file.FullName, _ => new()).Ref)">
-                        <Wait><img style="height:@(size)px" src='./Loading.png' /></Wait>
-                        <Ok><img style="height:@(size)px" src='@(context.ImageHash.preview)' /></Ok>
-                        <Err><img style="height:@(size)px" src='./Forbidden.png' /></Err>
+                        <Wait><img style=@style src='./Loading.png' /></Wait>
+                        <Ok><img style=@style src=@(context.ImageHash.preview) /></Ok>
+                        <Err><img style=@style src='./Forbidden.png' /></Err>
                     </TaskLoader>
                 </td>
             </tr>

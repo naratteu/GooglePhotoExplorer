@@ -17,6 +17,11 @@ public class Cache
         await Task.WhenAll(c.lLoader.Load(), c.gLoader.Load());
         return c;
     });
+    public void ClearFault()
+    {
+        lLoader.ClearFault();
+        gLoader.ClearFault();
+    }
 
     class Loader<T> where T : class, ICache
     {
@@ -32,7 +37,7 @@ public class Cache
             ab = new(t => File.AppendAllLinesAsync(Path, [t.ToJSON()]));
         }
         public readonly ConcurrentDictionary<string, Task<T>> dic = new();
-        void ClearFault()
+        public void ClearFault()
         {
             foreach (var kv in dic.ToLookup(kv => kv.Value.IsFaulted)[true])
                 _ = dic.TryRemove(kv);

@@ -15,7 +15,7 @@
             }
             <th><details><summary>Img</summary><dialog open><label><input type="range" @bind=size />@(size)px</label></dialog></details></th>
             <th>Description<button @onclick='()=>AppendDecs(miSelect)'>+</button></th>
-            <th><button title="Refresh" @onclick='StateHasChanged'>↻</button></th>
+            <th><button title="Refresh" @onclick='() => { cache.ClearFault(); StateHasChanged(); }'>↻</button></th>
         </tr>
     </thead>
     <tbody>
@@ -23,10 +23,20 @@
             @{
                 var ck = miSelect.Contains(id);
                 var mi = parent[id];
+                var style = $"height:{size}px";
             }
             <tr @key=id style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "")'>
                 <td @onclick='()=>_ = ck ? miSelect.Remove(id) : miSelect.Add(id)'>@mi.filename</td>
-                <td><a href="@mi.baseUrl"><img style="height:@(size)px" src='@Load(cache.Get(mi))'></a><a href="@mi.productUrl">↪</a></td>
+                <td>
+                    <a href="@mi.baseUrl">
+                        <TaskLoader Task="cache.Get(mi)">
+                            <Wait><img style=@style src='./Loading.png' /></Wait>
+                            <Ok><img style=@style src=@(context.ImageHash.preview) /></Ok>
+                            <Err><img style=@style src='./Forbidden.png' /></Err>
+                        </TaskLoader>
+                    </a>
+                    <a href="@mi.productUrl">↪</a>
+                </td>
                 <td>@mi.description</td>
                 <td><button title="Reload" @onclick='()=>parent.Reload(id)'>🗘</button></td>
             </tr>
@@ -53,25 +63,5 @@
             await parent.Reload(mi.id);
             StateHasChanged();
         });
-    }
-
-    string Load<T>(Task<T> t) where T : Cache.ICachePhoto
-    {
-        if (t.IsCompleted)
-        {
-            try
-            { return t.Result.ImageHash.preview; }
-            catch
-            { return "./Forbidden.png"; }
-        }
-        else
-        {
-            Loaded(t);
-            return "./Loading.png";
-        }
-    }
-    async void Loaded(Task t)
-    {
-        try { await t; } catch { } finally { StateHasChanged(); }
     }
 }
