@@ -15,7 +15,13 @@
         if (file.ShowDialog() is DialogResult.OK)
             await js.InvokeVoidAsync("localStorage.setItem", nameof(path), path = file.SelectedPath);
     }
-    protected override async void OnInitialized()
+    readonly ActionBlock<Task> ab;
+    public LocalView() => ab = new(async t =>
+    {
+        if ((t.IsCompleted, ab?.InputCount) is not (true, not 0))
+            try { await t; } catch { } finally { await InvokeAsync(StateHasChanged); }
+    });
+    protected override async Task OnInitializedAsync()
     {
         path = await js.InvokeAsync<string>("localStorage.getItem", nameof(path));
     }
@@ -68,12 +74,8 @@
         }
         else
         {
-            Loaded(t);
+            _ = ab.Post(t);
             return "./Loading.png";
         }
-    }
-    async void Loaded(Task t)
-    {
-        try { await t; } catch { } finally { StateHasChanged(); }
     }
 }
