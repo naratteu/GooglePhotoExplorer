@@ -35,6 +35,13 @@
                 rf = @<QueryView parent=this miList='[..g.Select(mi => mi.id)]' />,
             }.Show();
         }
+        <button @onclick=local>local</button>
+        void local() => new Rf.Form
+        {
+            Text = "local",
+            Size = new(800, 600),
+            rf = @<LocalView parent=this />,
+        }.Show();
     }
     <br>
     <span>@(new { login, cache_count = miDic.Count, updated_count, updated_all })</span>

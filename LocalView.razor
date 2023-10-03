@@ -1,0 +1,79 @@
+﻿@using CasCap.Models
+@using System.Collections.Concurrent
+@using System.Threading.Tasks.Dataflow
+
+@inject Cache cache
+
+<button @onclick=SetPath>LocalPath</button>
+@code
+{
+    FileInfo[] files = [];
+    string path { set => files = new DirectoryInfo(value).GetFiles().Where(f => f.Extension.ToLower() is ".png" or ".jpeg" or ".jpg").ToArray(); }
+    async Task SetPath()
+    {
+        using System.Windows.Forms.FolderBrowserDialog file = new();
+        if (file.ShowDialog() is DialogResult.OK)
+            await js.InvokeVoidAsync("localStorage.setItem", nameof(path), path = file.SelectedPath);
+    }
+    protected override async void OnInitialized()
+    {
+        path = await js.InvokeAsync<string>("localStorage.getItem", nameof(path));
+    }
+}
+<table>
+    <thead style="position: sticky; top: 0; background-color: silver">
+        <tr>
+            @if (miSelect.Count is 0)
+            {
+                <th @onclick='()=>miSelect.UnionWith(files)'>선택</th>
+            }
+            else
+            {
+                <th @onclick='()=>miSelect.RemoveWhere(_ => true)'>@miSelect.Count/@files.Length 개 선택됨</th>
+            }
+            <th><details><summary>Img</summary><dialog open><label><input type="range" @bind=size />@(size)px</label></dialog></details></th>
+            <th><button title="Refresh" @onclick='StateHasChanged'>↻</button></th>
+        </tr>
+    </thead>
+    <tbody>
+        <Virtualize Context=file Items=files SpacerElement=tr ItemSize=(size+margin)>
+            @{
+                var ck = miSelect.Contains(file);
+            }
+            <tr @key=file style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "")'>
+                <td @onclick='()=>_ = ck ? miSelect.Remove(file) : miSelect.Add(file)'>@file.Name</td>
+                <td><img style="height:@(size)px" src='@Load(cache.Get(file, ref refDic.GetOrAdd(file.FullName, _ => new()).Ref))'></td>
+            </tr>
+        </Virtualize>
+    </tbody>
+</table>
+@code
+{
+    [Parameter] public required GatherPage parent { get; init; }
+    readonly HashSet<FileInfo> miSelect = new();
+    readonly ConcurrentDictionary<string, RefBox<string?>> refDic = new();
+    class RefBox<T> { public T? Ref; }
+
+    uint size = 32;
+    const int margin = 10;
+
+    string Load<T>(Task<T> t) where T : Cache.ICachePhoto
+    {
+        if (t.IsCompleted)
+        {
+            try
+            { return t.Result.ImageHash.preview; }
+            catch
+            { return "./Forbidden.png"; }
+        }
+        else
+        {
+            Loaded(t);
+            return "./Loading.png";
+        }
+    }
+    async void Loaded(Task t)
+    {
+        try { await t; } catch { } finally { StateHasChanged(); }
+    }
+}

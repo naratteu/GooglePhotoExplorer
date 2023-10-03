@@ -41,5 +41,6 @@ public class BlazorForm : Form
         s.AddWindowsFormsBlazorWebView();
         s.AddSingleton<IConfiguration>(new ConfigurationBuilder().AddJsonFile("appsettings.json").Build());
         s.AddGooglePhotos();
+        s.AddSingleton(_ => Cache.Inst.Result);
     }).BuildServiceProvider();
 }
