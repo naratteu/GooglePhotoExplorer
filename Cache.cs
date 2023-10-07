@@ -49,14 +49,15 @@ public class Cache
     static readonly PerceptualHash per = new();
 
     static readonly MD5 md5 = MD5.Create();
-    static string ComputeHash(FileInfo f)
+    static string ComputeHash(Func<Stream> f)
     {
-        using var r = f.OpenRead();
+        using var r = f();
         return Convert.ToBase64String(md5.ComputeHash(r));
     }
-    public Task<LocalPhoto> Get(FileInfo f, ref string? key) => lLoader.dic.GetOrAdd(key ??= ComputeHash(f), md5 => Task.Run(() =>
+    public Task<LocalPhoto> Get(FileInfo f, ref string? key) => Get(f.OpenRead, ref key);
+    public Task<LocalPhoto> Get(Func<Stream> f, ref string? key) => lLoader.dic.GetOrAdd(key ??= ComputeHash(f), md5 => Task.Run(() =>
     {
-        using var r = f.OpenRead();
+        using var r = f();
         return lLoader.Add = new()
         {
             md5 = md5,

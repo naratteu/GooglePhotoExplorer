@@ -1,0 +1,80 @@
+﻿@using CasCap.Models
+@using System.Collections.Concurrent
+@using System.Threading.Tasks.Dataflow
+
+@inject Cache cache
+
+<style>
+    @@font-face {
+        font-family: 'hexbit';
+        src: url('hexbit.ttf') format('truetype');
+    }
+
+    .hexbit {
+        font-family: 'hexbit';
+        font-size: larger;
+        background-color: white;
+    }
+</style>
+
+<table>
+    @{
+        var style = $"height:{size}px";
+    }
+    <thead style="position: sticky; top: 0;">
+        <tr>
+            <th><img style=@style src=@(lp?.ImageHash.preview) /></th>
+            <th><span class="hexbit">@ToHexByte(lp?.ImageHash.avg)</span></th>
+            <th><span class="hexbit">@ToHexByte(lp?.ImageHash.dif)</span></th>
+            <th><span class="hexbit">@ToHexByte(lp?.ImageHash.per)</span></th>
+        </tr>
+    </thead>
+    <tbody>
+        <Virtualize Context=i Items='sort' SpacerElement=tr ItemSize=(size+margin)>
+            <tr @key=i.gp style='height: @(size+margin)px;'>
+                <td><img style=@style src=@(i.gp.ImageHash.preview) /></td>
+                <th><span class="hexbit">@ToHexByte(i.gp.ImageHash.avg)</span></th>
+                <th><span class="hexbit">@ToHexByte(i.gp.ImageHash.dif)</span></th>
+                <th><span class="hexbit">@ToHexByte(i.gp.ImageHash.per)</span></th>
+                <th>@i.delta</th>
+            </tr>
+        </Virtualize>
+    </tbody>
+</table>
+@code
+{
+    [Parameter] public required GatherPage parent { get; init; }
+    [Parameter] public required Cache.LocalPhoto lp { get; init; }
+    LinkedList<Item> sort = new();
+    record struct Item(ulong delta, Cache.GooglePhoto gp);
+    uint size = 32;
+    const int margin = 10;
+    protected override async Task OnParametersSetAsync()
+    {
+        foreach (var mi in parent.Items)
+            try
+            {
+                SortedInsert(lp.ImageHash, await cache.Get(mi));
+                StateHasChanged();
+            }
+            catch { }
+    }
+    void SortedInsert(in Cache.ImageHash ih, in Cache.GooglePhoto gp)
+    {
+        var delta =
+            ulong.PopCount(ih.avg ^ gp.ImageHash.avg) +
+            ulong.PopCount(ih.dif ^ gp.ImageHash.dif) +
+            ulong.PopCount(ih.per ^ gp.ImageHash.per);
+        if (sort.Count is 0)
+            sort.AddFirst(value: new(delta, gp));
+        else if (delta < sizeof(ulong) * 8 * 3 / 2) //차이점이 적은걸 앞에
+            sort.AddBefore(AndNexts(sort.First).First(i => delta <= i.ValueRef.delta), value: new(delta, gp));
+        else
+            sort.AddAfter(AndPrevs(sort.Last).First(i => delta >= i.ValueRef.delta), value: new(delta, gp));
+        static IEnumerable<LinkedListNode<T>> AndNexts<T>(LinkedListNode<T>? node) { for (; node is { }; node = node.Next) yield return node; }
+        static IEnumerable<LinkedListNode<T>> AndPrevs<T>(LinkedListNode<T>? node) { for (; node is { }; node = node.Previous) yield return node; }
+    }
+    static string ToHexByte(ulong? origin) => ToHexByte(origin ?? 0);
+    static string ToHexByte(in ulong origin)
+        =>Convert.ToHexString(System.Runtime.InteropServices.MemoryMarshal.AsBytes(new ReadOnlySpan<ulong>(in origin)));
+}
