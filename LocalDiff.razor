@@ -45,8 +45,9 @@
 {
     [Parameter] public required GatherPage parent { get; init; }
     [Parameter] public required Cache.LocalPhoto lp { get; init; }
-    LinkedList<Item> sort = new();
+    readonly SortedLinkedList<Item> sort = new() { Comp = comp };
     record struct Item(ulong delta, Cache.GooglePhoto gp);
+    static readonly IComparer<Item> comp = Comparer<Item>.Create((x, y) => Comparer<ulong>.Default.Compare(x.delta, y.delta));
     uint size = 32;
     const int margin = 10;
     protected override async Task OnParametersSetAsync()
@@ -65,16 +66,12 @@
             ulong.PopCount(ih.avg ^ gp.ImageHash.avg) +
             ulong.PopCount(ih.dif ^ gp.ImageHash.dif) +
             ulong.PopCount(ih.per ^ gp.ImageHash.per);
-        if (sort.Count is 0)
-            sort.AddFirst(value: new(delta, gp));
-        else if (delta < sizeof(ulong) * 8 * 3 / 2) //차이점이 적은걸 앞에
-            sort.AddBefore(AndNexts(sort.First).First(i => delta <= i.ValueRef.delta), value: new(delta, gp));
+        if (delta < sizeof(ulong) * 8 * 3 / 2) //차이점이 적은걸 앞에
+            sort.AddFirst(new(delta, gp));
         else
-            sort.AddAfter(AndPrevs(sort.Last).First(i => delta >= i.ValueRef.delta), value: new(delta, gp));
-        static IEnumerable<LinkedListNode<T>> AndNexts<T>(LinkedListNode<T>? node) { for (; node is { }; node = node.Next) yield return node; }
-        static IEnumerable<LinkedListNode<T>> AndPrevs<T>(LinkedListNode<T>? node) { for (; node is { }; node = node.Previous) yield return node; }
+            sort.AddLast(new(delta, gp));
     }
     static string ToHexByte(ulong? origin) => ToHexByte(origin ?? 0);
     static string ToHexByte(in ulong origin)
-        =>Convert.ToHexString(System.Runtime.InteropServices.MemoryMarshal.AsBytes(new ReadOnlySpan<ulong>(in origin)));
+        => Convert.ToHexString(System.Runtime.InteropServices.MemoryMarshal.AsBytes(new ReadOnlySpan<ulong>(in origin)));
 }
