@@ -45,10 +45,10 @@
 {
     [Parameter] public required GatherPage parent { get; init; }
     [Parameter] public required Cache.LocalPhoto lp { get; init; }
-    readonly SortedLinkedList<Item> sort = new() { Comp = comp };
-    record struct Item(ulong delta, Cache.GooglePhoto gp);
+    protected readonly SortedLinkedList<Item> sort = new() { Comp = comp };
+    protected record struct Item(ulong delta, Cache.GooglePhoto gp);
     static readonly IComparer<Item> comp = Comparer<Item>.Create((x, y) => Comparer<ulong>.Default.Compare(x.delta, y.delta));
-    uint size = 32;
+    protected uint size = 32;
     const int margin = 10;
     protected override async Task OnParametersSetAsync()
     {

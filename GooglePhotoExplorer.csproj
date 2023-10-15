@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="ParallelExtensionsExtras" Version="1.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.QuickGrid" Version="8.0.0-rc.1.23421.29" />
     <PackageReference Include="Selenium.WebDriver" Version="4.13.1" />
     <PackageReference Include="CasCap.Apis.GooglePhotos" Version="2.0.2" />
     <PackageReference Include="CoenM.ImageSharp.ImageHash" Version="1.3.6" />

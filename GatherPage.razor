@@ -43,21 +43,51 @@
             Size = new(800, 600),
             rf = @<LocalView parent=this />,
         }.Show();
-        <label>local2<InputFile OnChange=local2 /></label>
+        <label>local2<InputFile OnChange=local2 multiple /></label>
         async Task local2(InputFileChangeEventArgs args)
         {
-            await using var s = args.File.OpenReadStream(); //비동기읽기만 지원하여 복사필요
-            await using MemoryStream ms = new();
-            await s.CopyToAsync(ms);
-            var arr = ms.ToArray();
-            string? key=null;
-            var lp = await c.Get(() => new MemoryStream(arr), ref key);
-            new Rf.Form
+            static async Task<Cache.LocalPhoto> Open(IBrowserFile file, Cache c)
             {
-                Text = "local",
-                Size = new(800, 600),
-                rf = @<LocalDiff parent=this lp=lp />,
-            }.Show();
+                await using var s = file.OpenReadStream(file.Size); //비동기읽기만 지원하여 복사필요
+                await using MemoryStream ms = new();
+                await s.CopyToAsync(ms);
+                var arr = ms.ToArray();
+                string? key = null;
+                return await c.Get(() => new MemoryStream(arr), ref key);
+            }
+            switch (args.FileCount)
+            {
+                case > 1 and var cnt :
+                    var files = args.GetMultipleFiles(cnt).Select(file =>
+                    {
+                        var lp = Open(file, c);
+                        RenderFragment rf = @<TaskLoader Task=lp>
+                            <Wait>loading..</Wait>
+                            <Ok><LocalDiffItem parent=this lp=context /></Ok>
+                            <Err>Err!</Err>
+                        </TaskLoader>;
+                        return (file, rf);
+                    }).AsQueryable();
+                    new Rf.Form
+                    {
+                        Text = "local files",
+                        Size = new(800, 600),
+                        rf = @<QuickGrid Items="files">
+                            <PropertyColumn Property="f => f.file.Name" />
+                            <TemplateColumn Title="render">@context.rf</TemplateColumn>
+                            </QuickGrid>,
+                    }.Show();
+                    break;
+                default:
+                    var lp = await Open(args.File, c);
+                    new Rf.Form
+                    {
+                        Text = "local",
+                        Size = new(800, 600),
+                        rf = @<LocalDiff parent=this lp=lp />,
+                    }.Show();
+                    break;
+            }
         }
     }
     <br>

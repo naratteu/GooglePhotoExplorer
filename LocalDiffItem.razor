@@ -1,0 +1,29 @@
+﻿@using CasCap.Models
+@using System.Collections.Concurrent
+@using System.Threading.Tasks.Dataflow
+@inherits LocalDiff
+
+@inject Cache cache
+
+<div style="display:flex">
+    @{
+        var style = $"height:{size}px";
+    }
+    <img style=@style src=@(lp?.ImageHash.preview) />
+    <hr />
+    @foreach (var i in sort.Take(Take))
+    {
+        <img style=@style src=@(i.gp.ImageHash.preview) />
+    }
+    <button @onclick=detail>detail</button>
+</div>
+
+@code {
+    [Parameter] public byte Take { get; init; } = 3;
+    void detail() => new Rf.Form
+    {
+        Text = "local",
+        Size = new(800, 600),
+        rf =@<LocalDiff parent=parent lp=lp />,
+    }.Show();
+}
