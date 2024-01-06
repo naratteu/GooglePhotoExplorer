@@ -2,63 +2,92 @@
 
 @inject Cache cache
 
-<table>
-    <thead style="position: sticky; top: 0; background-color: silver">
-        <tr>
-            @if (miSelect.Count is 0)
-            {
-                <th @onclick='()=>miSelect.UnionWith(miList)'>선택</th>
-            }
-            else
-            {
-                <th @onclick='()=>miSelect.RemoveWhere(_ => true)'>@miSelect.Count/@miList.Count 개 선택됨</th>
-            }
-            <th><details><summary>Img</summary><dialog open><label><input type="range" @bind=size />@(size)px</label></dialog></details></th>
-            <th>Description<button @onclick='()=>AppendDecs(miSelect)'>+</button></th>
-            <th><button title="Refresh" @onclick='() => { cache.ClearFault(); StateHasChanged(); }'>↻</button></th>
-        </tr>
-    </thead>
-    <tbody>
-        <Virtualize Context=id Items=miList SpacerElement=tr ItemSize=(size+margin)>
-            @{
-                var ck = miSelect.Contains(id);
-                var mi = parent[id];
-                var style = $"height:{size}px";
-            }
-            <tr @key=id style='height: @(size+margin)px;@(ck ? "background-color:aquamarine;" : "")'>
-                <td @onclick='()=>_ = ck ? miSelect.Remove(id) : miSelect.Add(id)'>@mi.filename</td>
-                <td>
-                    <a href="@mi.baseUrl">
-                        <TaskLoader Task="cache.Get(mi)">
-                            <Wait><img style=@style src='./Loading.png' /></Wait>
-                            <Ok><img style=@style src=@(context.ImageHash.preview) /></Ok>
-                            <Err><img style=@style src='./Forbidden.png' /></Err>
-                        </TaskLoader>
-                    </a>
-                    <a href="@mi.productUrl">↪</a>
-                </td>
-                <td>@mi.description</td>
-                <td><button title="Reload" @onclick='()=>parent.Reload(id)'>🗘</button></td>
-            </tr>
-        </Virtualize>
-    </tbody>
-</table>
+<QuickGrid id="miList" Items=miList Virtualize="true">
+    <TemplateColumn>
+        <HeaderTemplate>
+            <label>
+                <input @bind=SelectAll type="checkbox" />
+                @if (SelectAll)
+                {
+                    <text>모두 선택</text>
+                }
+                else
+                {
+                    <text>@miSelect.Count/@miList.Count() 개 선택됨</text>
+                }
+            </label>
+        </HeaderTemplate>
+        <ChildContent Context="mi"><label><input @bind=this[mi] type="checkbox" /> @mi.filename</label></ChildContent>
+    </TemplateColumn>
+    <TemplateColumn Context="mi">
+        <HeaderTemplate><details><summary>Img</summary><dialog open><label><input type="range" @bind=size />@(size)px</label></dialog></details></HeaderTemplate>
+        <ChildContent>
+            <a href="@mi.baseUrl" class="preview">
+                <TaskLoader @key=mi.id Task="cache.Get(mi)">
+                    <Wait><img src='./Loading.png' /></Wait>
+                    <Ok><img src=@(context.ImageHash.preview) /></Ok>
+                    <Err><img src='./Forbidden.png' /></Err>
+                </TaskLoader>
+            </a>
+            <a href="@mi.productUrl">↪</a>
+        </ChildContent>
+    </TemplateColumn>
+    <TemplateColumn Context="mi">
+        <HeaderTemplate>Description<button @onclick='()=>AppendDecs(miSelect)'>+</button></HeaderTemplate>
+        <ChildContent>@mi.description</ChildContent>
+    </TemplateColumn>
+    <TemplateColumn Context="mi">
+        <HeaderTemplate><button title="Refresh" @onclick='() => { cache.ClearFault(); StateHasChanged(); }'>↻</button></HeaderTemplate>
+        <ChildContent><button title="Reload" @onclick='()=>parent.Reload(mi.id)'>🗘</button></ChildContent>
+    </TemplateColumn>
+</QuickGrid>
+
+<style>
+    #miList thead {
+        position: sticky;
+        top: 0;
+        background-color: silver;
+    }
+
+    #miList tbody tr {
+        height: @(size + margin)px;
+    }
+
+        #miList tbody tr:has(input:checked) {
+            background-color: aquamarine;
+        }
+
+        #miList tbody tr .preview img {
+            height: @(size)px;
+        }
+</style>
+
 @code
 {
     [Parameter] public required GatherPage parent { get; init; }
-    [Parameter] public required ICollection<string> miList { get; init; }
-    readonly HashSet<string> miSelect = new();
+    [Parameter] public required IQueryable<MediaItem> miList { get; init; }
+    readonly HashSet<MediaItem> miSelect = new();
+    bool SelectAll
+    {
+        get => miSelect.Count == miList.Count();
+        set { if (value) miSelect.UnionWith(miList); else miSelect.RemoveWhere(_ => true); }
+    }
+    bool this[MediaItem mi]
+    {
+        get => miSelect.Contains(mi);
+        set => _ = value ? miSelect.Add(mi) : miSelect.Remove(mi);
+    }
 
     uint size = 32;
     const int margin = 10;
 
-    async Task AppendDecs(IEnumerable<string> ids)
+    async Task AppendDecs(IEnumerable<MediaItem> mis)
     {
-        var text = await js.InvokeAsync<string>("prompt", [$"선택한 {ids.Count()}개 사진에 추가할 내용을 입력하세요", "#"]);
+        var text = await js.InvokeAsync<string>("prompt", [$"선택한 {mis.Count()}개 사진에 추가할 내용을 입력하세요", "#"]);
         if (string.IsNullOrWhiteSpace(text))
             return;
 
-        await Macro.Inst.AppendDecs(text, [.. ids.Select(id => parent[id])], async mi =>
+        await Macro.Inst.AppendDecs(text, mis, async mi =>
         {
             await parent.Reload(mi.id);
             StateHasChanged();

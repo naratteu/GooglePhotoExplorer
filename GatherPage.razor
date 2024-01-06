@@ -11,7 +11,7 @@
 
 <h1>수집 페이지</h1>
 
-<QueryView parent=this miList='miDic.Keys' />
+<QueryView parent=this miList='miDic.Values.AsQueryable()' />
 
 <div style="position: sticky; bottom: 0; background-color: silver; overflow:hidden">
     @if (update_request is null)
@@ -33,7 +33,7 @@
             {
                 Text = n,
                 Size = new(800, 600),
-                rf = @<QueryView parent=this miList='[..g.Select(mi => mi.id)]' />,
+                rf = @<QueryView parent=this miList='g.AsQueryable()' />,
             }.Show();
         }
         <button @onclick=local>local</button>
