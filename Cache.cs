@@ -67,7 +67,8 @@ public class Cache
                 dif = hash(dif, r),
                 per = hash(per, r),
                 preview = base64(r),
-            }
+            },
+            CachedDate = DateTime.Now,
         };
     }));
 
@@ -87,6 +88,7 @@ public class Cache
                 per = hash(per, r),
                 preview = base64(r),
             },
+            CachedDate = DateTime.Now,
         };
     }));
     static ulong hash(IImageHash h, Stream s) { s.Position = 0; return h.Hash(s); }
@@ -103,6 +105,7 @@ public class Cache
     public interface ICache
     {
         string Key { get; }
+        DateTime CachedDate { get; }
     }
     public interface ICachePhoto : ICache
     {
@@ -112,6 +115,7 @@ public class Cache
     {
         public required string md5;
         public required ImageHash ImageHash;
+        public required DateTime CachedDate { get; init; }
 
         string ICache.Key => md5;
         ImageHash ICachePhoto.ImageHash => ImageHash;
@@ -121,6 +125,7 @@ public class Cache
     {
         public required string id;
         public required ImageHash ImageHash;
+        public required DateTime CachedDate { get; init; }
 
         string ICache.Key => id;
         ImageHash ICachePhoto.ImageHash => ImageHash;

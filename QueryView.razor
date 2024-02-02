@@ -25,21 +25,24 @@
             <a href="@mi.baseUrl" class="preview">
                 <TaskLoader @key=mi.id Task="cache.Get(mi)">
                     <Wait><img src='./Loading.png' /></Wait>
-                    <Ok><img src=@(context.ImageHash.preview) /></Ok>
+                    <Ok><img src=@(context.ImageHash.preview) style="aspect-ratio:@mi.mediaMetadata.width/@mi.mediaMetadata.height" />@PassedTime(context.CachedDate)</Ok>
                     <Err><img src='./Forbidden.png' /></Err>
                 </TaskLoader>
             </a>
             <a href="@mi.productUrl">↪</a>
         </ChildContent>
     </TemplateColumn>
-    <TemplateColumn Context="mi">
-        <HeaderTemplate>Description<button @onclick='()=>AppendDecs(miSelect)'>+</button></HeaderTemplate>
-        <ChildContent>@mi.description</ChildContent>
+    <PropertyColumn Sortable="true" Property="mi => mi.description" />
+    <TemplateColumn>
+        <HeaderTemplate><button @onclick='()=>AppendDecs(miSelect)'>+</button></HeaderTemplate>
     </TemplateColumn>
     <TemplateColumn Context="mi">
         <HeaderTemplate><button title="Refresh" @onclick='() => { cache.ClearFault(); StateHasChanged(); }'>↻</button></HeaderTemplate>
         <ChildContent><button title="Reload" @onclick='()=>parent.Reload(mi.id)'>🗘</button></ChildContent>
     </TemplateColumn>
+    <PropertyColumn Sortable="true" Property="mi => mi.mimeType"/>
+    <PropertyColumn Sortable="true" Property="mi => mi.syncDate"/>
+    <PropertyColumn Sortable="true" Property="mi => mi.mediaMetadata.creationTime"/>
 </QuickGrid>
 
 <style>
@@ -92,5 +95,20 @@
             await parent.Reload(mi.id);
             StateHasChanged();
         });
+    }
+
+    static string PassedTime(DateTime l)
+    {
+        var n = DateTime.Now;
+        if (n.Year - l.Year is > 0 and var y) return $"{y:0}년 전";
+        if (n.Month - l.Month is > 0 and var M) return $"{M:0}달 전";
+        return (n - l) switch
+        {
+            { TotalDays: >= 1 and var d } => $"{d:0}일 전",
+            { TotalHours: >= 1 and var h } => $"{h:0}시간 전",
+            { TotalMinutes: >= 1 and var m } => $"{m:0}분 전",
+            { TotalSeconds: > 0 and var s } => $"{s:0.#}초 전",
+            _ => "-"
+        };
     }
 }
